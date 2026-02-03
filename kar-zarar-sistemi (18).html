@@ -1,0 +1,2735 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kâr-Zarar Yönetim Sistemi</title>
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.0/firebase-app.js";
+        import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.8.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyB6UZu71XtYvMDfa_lbaeMJsTlMNXPj8NA",
+            authDomain: "kar-zarar-sistemi.firebaseapp.com",
+            projectId: "kar-zarar-sistemi",
+            storageBucket: "kar-zarar-sistemi.firebasestorage.app",
+            messagingSenderId: "751336437575",
+            appId: "1:751336437575:web:d84076de875d2f99087e62"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // Global'a taşı — ana script'ten kullanılabilsin
+        window._db        = db;
+        window._fbDoc     = doc;
+        window._fbSetDoc  = setDoc;
+        window._fbGetDoc  = getDoc;
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #0a0e27;
+            --bg-secondary: #141b3a;
+            --bg-card: #1a2347;
+            --accent-green: #00ff88;
+            --accent-red: #ff4757;
+            --accent-blue: #4d7cfe;
+            --accent-purple: #a55eea;
+            --accent-orange: #ffa502;
+            --accent-cyan: #2ed573;
+            --text-primary: #ffffff;
+            --text-secondary: #8b9dc3;
+            --border-color: rgba(77, 124, 254, 0.2);
+            --shadow-glow: rgba(77, 124, 254, 0.3);
+        }
+
+        [data-theme="light"] {
+            --bg-primary: #f0f2f8;
+            --bg-secondary: #e2e7f1;
+            --bg-card: #ffffff;
+            --accent-green: #1db954;
+            --accent-red: #e63946;
+            --accent-blue: #3a6cf4;
+            --accent-purple: #7c3aed;
+            --accent-orange: #f59e0b;
+            --accent-cyan: #059669;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --border-color: rgba(58, 108, 244, 0.2);
+            --shadow-glow: rgba(58, 108, 244, 0.25);
+        }
+
+        body {
+            font-family: -apple-system, 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            background-image: 
+                radial-gradient(circle at 20% 30%, rgba(77, 124, 254, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 80% 70%, rgba(165, 94, 234, 0.15) 0%, transparent 50%);
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 2rem;
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        h1 {
+            font-size: 3.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.02em;
+        }
+
+        .tabs {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-bottom: 3rem;
+        }
+
+        .tab-btn {
+            padding: 1rem 2.5rem;
+            background: var(--bg-card);
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            color: var(--text-secondary);
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .tab-btn.active {
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+            border-color: var(--accent-blue);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(77, 124, 254, 0.3);
+        }
+
+        .tab-btn:hover:not(.active) {
+            border-color: var(--accent-blue);
+            color: var(--text-primary);
+        }
+
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 2rem;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--accent-color), transparent);
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--accent-color);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3), 0 0 20px var(--shadow-glow);
+        }
+
+        .stat-card.profit { --accent-color: var(--accent-green); }
+        .stat-card.loss { --accent-color: var(--accent-red); }
+        .stat-card.revenue { --accent-color: var(--accent-blue); }
+        .stat-card.count { --accent-color: var(--accent-cyan); }
+
+        .stat-sub {
+            margin-top: 0.35rem;
+            font-size: 0.88rem;
+            font-weight: 600;
+            color: var(--accent-color);
+            opacity: 0.85;
+        }
+
+        .stat-icon {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-value {
+            font-size: 2.2rem;
+            font-weight: 700;
+            font-family: 'SF Mono', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            color: var(--accent-color);
+            text-shadow: 0 0 20px var(--accent-color);
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .card-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.2rem;
+        }
+
+        label {
+            display: block;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 0.9rem;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-size: 0.95rem;
+            font-family: 'SF Mono', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            transition: all 0.3s;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 3px rgba(77, 124, 254, 0.1);
+        }
+
+        .btn {
+            padding: 1.2rem 2rem;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+            color: white;
+            box-shadow: 0 10px 30px rgba(77, 124, 254, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 40px rgba(77, 124, 254, 0.4);
+        }
+
+        .btn-danger {
+            background: transparent;
+            border: 1px solid var(--accent-red);
+            color: var(--accent-red);
+            padding: 0.4rem 0.85rem;
+            font-size: 0.8rem;
+            border-radius: 6px;
+        }
+
+        .btn-danger:hover {
+            background: var(--accent-red);
+            color: white;
+        }
+
+        .btn-export {
+            background: linear-gradient(135deg, #ffa502, #ff6b81);
+            border: none;
+            color: white;
+            padding: 0.6rem 1.2rem;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            white-space: nowrap;
+        }
+
+        .btn-export:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 165, 2, 0.4);
+        }
+
+        .btn-export:active {
+            transform: translateY(0);
+        }
+
+        .btn-reset {
+            background: transparent;
+            border: 1px solid rgba(255, 71, 87, 0.4);
+            color: rgba(255, 71, 87, 0.7);
+            padding: 0.8rem 1.4rem;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-left: auto;
+        }
+
+        .btn-reset:hover {
+            border-color: var(--accent-red);
+            color: var(--accent-red);
+            background: rgba(255, 71, 87, 0.08);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+
+        thead {
+            background: var(--bg-secondary);
+            border-bottom: 2px solid rgba(139, 157, 195, 0.45);
+        }
+
+        [data-theme="light"] thead {
+            border-bottom-color: rgba(100, 116, 139, 0.3);
+        }
+
+        th {
+            padding: 1rem;
+            text-align: left;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        th:first-child {
+            text-align: left;
+        }
+
+        th:last-child {
+            text-align: center;
+        }
+
+        tbody tr {
+            transition: background 0.18s ease;
+            border-bottom: 1px solid rgba(139, 157, 195, 0.5);
+        }
+
+        [data-theme="light"] tbody tr {
+            border-bottom-color: rgba(100, 116, 139, 0.35);
+        }
+
+        tbody tr:hover {
+            background: var(--bg-secondary);
+        }
+
+        td {
+            padding: 1rem;
+            font-family: 'SF Mono', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            font-size: 0.9rem;
+        }
+
+        .profit-cell {
+            color: var(--accent-green);
+            font-weight: 600;
+        }
+
+        .loss-cell {
+            color: var(--accent-red);
+            font-weight: 600;
+        }
+
+        .filter-bar {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-bottom: 1.5rem;
+            align-items: flex-end;
+        }
+
+        .filter-group {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--text-secondary);
+        }
+
+        .empty-state-icon {
+            font-size: 5rem;
+            margin-bottom: 1rem;
+            opacity: 0.3;
+        }
+
+        .product-badge {
+            display: inline;
+            color: var(--text-primary);
+            font-size: 0.88rem;
+            font-weight: 600;
+        }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        .chart-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 2rem;
+        }
+
+        .chart-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            text-align: center;
+            color: var(--text-primary);
+        }
+
+        @media (max-width: 1024px) {
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .filter-bar {
+                flex-direction: column;
+            }
+
+            .filter-group {
+                width: 100%;
+            }
+        }
+
+        @media (max-width: 640px) {
+            h1 {
+                font-size: 2rem;
+            }
+
+            .tabs {
+                flex-direction: column;
+            }
+
+            table {
+                font-size: 0.75rem;
+            }
+
+            th, td {
+                padding: 0.45rem 0.5rem;
+                font-size: 0.78rem;
+            }
+
+            /* Mobil kart layout */
+            .mobile-cards {
+                display: flex;
+                flex-direction: column;
+                gap: 0.7rem;
+            }
+
+            .mobile-card {
+                background: var(--bg-card);
+                border: 1px solid var(--border-color);
+                border-radius: 14px;
+                padding: 1rem 1.1rem;
+            }
+
+            .mobile-card-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 0.7rem;
+            }
+
+            .mobile-card-title {
+                font-size: 0.95rem;
+                font-weight: 700;
+                color: var(--text-primary);
+            }
+
+            .mobile-card-date {
+                font-size: 0.78rem;
+                color: var(--text-secondary);
+            }
+
+            .mobile-card-profit {
+                font-size: 1.1rem;
+                font-weight: 700;
+            }
+
+            .mobile-card-grid {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 0.5rem 1rem;
+            }
+
+            .mobile-card-item {
+                display: flex;
+                flex-direction: column;
+                gap: 1px;
+            }
+
+            .mobile-card-item-label {
+                font-size: 0.7rem;
+                color: var(--text-secondary);
+                text-transform: uppercase;
+                letter-spacing: 0.04em;
+            }
+
+            .mobile-card-item-value {
+                font-size: 0.88rem;
+                font-weight: 600;
+                color: var(--text-primary);
+            }
+
+            .mobile-card-footer {
+                margin-top: 0.7rem;
+                padding-top: 0.6rem;
+                border-top: 1px solid var(--border-color);
+                display: flex;
+                justify-content: flex-end;
+            }
+
+            /* Tablo mobilde gizle */
+            .desktop-table {
+                display: none;
+            }
+
+        }
+
+        /* Light tema ek overrides */
+        [data-theme="light"] body {
+            background-image:
+                radial-gradient(circle at 20% 30%, rgba(58, 108, 244, 0.07) 0%, transparent 50%),
+                radial-gradient(circle at 80% 70%, rgba(124, 58, 237, 0.07) 0%, transparent 50%);
+        }
+
+        [data-theme="light"] .stat-card:hover {
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08), 0 0 15px var(--shadow-glow);
+        }
+
+        [data-theme="light"] .stat-value {
+            text-shadow: none;
+        }
+
+        [data-theme="light"] input, [data-theme="light"] select {
+            background: #fff;
+            border-color: #cbd5e1;
+        }
+
+        [data-theme="light"] input:focus, [data-theme="light"] select:focus {
+            box-shadow: 0 0 0 3px rgba(58, 108, 244, 0.15);
+        }
+
+        [data-theme="light"] select option {
+            background: #fff;
+            color: #1e293b;
+        }
+
+        [data-theme="light"] .btn-primary {
+            box-shadow: 0 6px 18px rgba(58, 108, 244, 0.3);
+        }
+
+        [data-theme="light"] .btn-primary:hover {
+            box-shadow: 0 10px 28px rgba(58, 108, 244, 0.4);
+        }
+
+        [data-theme="light"] .tab-btn.active {
+            box-shadow: 0 6px 18px rgba(58, 108, 244, 0.3);
+        }
+
+        [data-theme="light"] .card, [data-theme="light"] .chart-card {
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+        }
+
+        [data-theme="light"] .product-badge {
+            color: var(--text-primary);
+        }
+
+        /* Tema toggle */
+        .theme-toggle {
+            position: fixed;
+            top: 1.2rem;
+            right: 1.5rem;
+            z-index: 999;
+            background: var(--bg-card);
+            border: 2px solid var(--border-color);
+            border-radius: 50px;
+            padding: 0.5rem 0.6rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.15);
+        }
+
+        .theme-toggle:hover {
+            border-color: var(--accent-blue);
+            transform: scale(1.05);
+        }
+
+        .theme-toggle .toggle-icon {
+            font-size: 1.3rem;
+            transition: transform 0.4s;
+        }
+
+        .theme-toggle .toggle-track {
+            width: 42px;
+            height: 22px;
+            background: var(--bg-secondary);
+            border-radius: 11px;
+            position: relative;
+            border: 1px solid var(--border-color);
+            transition: background 0.3s;
+        }
+
+        .theme-toggle .toggle-thumb {
+            width: 16px;
+            height: 16px;
+            background: var(--accent-blue);
+            border-radius: 50%;
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            transition: left 0.3s;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+        }
+
+        [data-theme="light"] .theme-toggle .toggle-thumb {
+            left: 22px;
+        }
+
+
+        /* Sıralanabilir th */
+        th.sortable {
+            cursor: pointer;
+            user-select: none;
+            -webkit-user-select: none;
+            position: relative;
+            padding-right: 1.6rem !important;
+            transition: color 0.2s, background 0.2s;
+        }
+
+        th.sortable:hover {
+            color: var(--accent-blue) !important;
+            background: var(--bg-card);
+        }
+
+        th.sortable .sort-arrow {
+            position: absolute;
+            right: 0.6rem;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+            opacity: 0.25;
+            transition: opacity 0.2s;
+        }
+
+        th.sortable:hover .sort-arrow {
+            opacity: 0.5;
+        }
+
+        th.sortable.active {
+            color: var(--accent-blue) !important;
+        }
+
+        th.sortable.active .sort-arrow {
+            opacity: 1;
+        }
+
+        th.sortable.active .sort-arrow .arrow-up {
+            opacity: 0.2;
+        }
+
+        th.sortable.active.asc .sort-arrow .arrow-up {
+            opacity: 1;
+        }
+
+        th.sortable.active.asc .sort-arrow .arrow-down {
+            opacity: 0.2;
+        }
+
+        th.sortable.active.desc .sort-arrow .arrow-down {
+            opacity: 1;
+        }
+
+        .sort-arrow .arrow-up, .sort-arrow .arrow-down {
+            display: block;
+            width: 0;
+            height: 0;
+            transition: opacity 0.2s;
+        }
+
+        .sort-arrow .arrow-up {
+            border-left: 4px solid transparent;
+            border-right: 4px solid transparent;
+            border-bottom: 5px solid var(--accent-blue);
+        }
+
+        .sort-arrow .arrow-down {
+            border-left: 4px solid transparent;
+            border-right: 4px solid transparent;
+            border-top: 5px solid var(--accent-blue);
+        }
+
+        /* Drag-scroll tablo wrapper */
+        .drag-scroll {
+            overflow-x: auto;
+            cursor: grab;
+            scroll-behavior: smooth;
+        }
+
+        .drag-scroll.dragging {
+            cursor: grabbing;
+            scroll-behavior: auto;
+        }
+
+        .drag-scroll::-webkit-scrollbar {
+            height: 6px;
+        }
+
+        .drag-scroll::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+            border-radius: 3px;
+        }
+
+        .drag-scroll::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 3px;
+        }
+
+        .drag-scroll::-webkit-scrollbar-thumb:hover {
+            background: var(--accent-blue);
+        }
+
+
+        /* AI Analiz Butonu */
+        .btn-ai {
+            background: linear-gradient(135deg, #a55eea, #4d7cfe);
+            border: none;
+            color: white;
+            padding: 0.6rem 1.2rem;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .btn-ai:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 22px rgba(165, 94, 234, 0.45);
+        }
+
+        .btn-ai:active { transform: translateY(0); }
+
+        .btn-ai:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* Modal overlay */
+        .ai-modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.55);
+            backdrop-filter: blur(4px);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+            padding: 1.5rem;
+            animation: fadeIn 0.2s ease;
+        }
+
+        .ai-modal-overlay.open { display: flex; }
+
+        /* Modal kart */
+        .ai-modal {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            width: 100%;
+            max-width: 680px;
+            max-height: 82vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 30px 60px rgba(0,0,0,0.35), 0 0 30px var(--shadow-glow);
+            animation: modalSlideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        @keyframes modalSlideUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Modal header */
+        .ai-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.6rem 1.8rem 1rem;
+            flex-shrink: 0;
+        }
+
+        .ai-modal-header h3 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-blue));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .ai-modal-header h3 .title-text {
+            -webkit-text-fill-color: transparent;
+        }
+
+        .ai-modal-close {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            width: 34px;
+            height: 34px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+
+        .ai-modal-close:hover {
+            border-color: var(--accent-red);
+            color: var(--accent-red);
+        }
+
+        /* Tarih badge */
+        .ai-date-badge {
+            margin: 0 1.8rem 1rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 0.35rem 0.75rem;
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            flex-shrink: 0;
+        }
+
+        .ai-date-badge .badge-date {
+            color: var(--accent-blue);
+            font-weight: 600;
+        }
+
+        /* Scrollable body */
+        .ai-modal-body {
+            overflow-y: auto;
+            padding: 0 1.8rem 1.8rem;
+            flex: 1;
+        }
+
+        .ai-modal-body::-webkit-scrollbar { width: 6px; }
+        .ai-modal-body::-webkit-scrollbar-track { background: var(--bg-secondary); border-radius: 3px; }
+        .ai-modal-body::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 3px; }
+        .ai-modal-body::-webkit-scrollbar-thumb:hover { background: var(--accent-blue); }
+
+        /* Loading state */
+        .ai-loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            padding: 3rem 1rem;
+        }
+
+        .ai-spinner {
+            width: 44px;
+            height: 44px;
+            border: 3px solid var(--border-color);
+            border-top-color: var(--accent-purple);
+            border-right-color: var(--accent-blue);
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .ai-loading-text {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            font-weight: 500;
+        }
+
+        .ai-loading-dots::after {
+            content: '';
+            animation: dots 1.4s steps(3) infinite;
+        }
+
+        @keyframes dots {
+            0%  { content: '.'; }
+            33% { content: '..'; }
+            66% { content: '...'; }
+        }
+
+        /* Tavsiye kartları */
+        .ai-section-title {
+            font-size: 0.78rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-secondary);
+            margin-bottom: 0.7rem;
+            margin-top: 1.2rem;
+        }
+
+        .ai-section-title:first-child { margin-top: 0; }
+
+        .ai-advice-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 1rem 1.1rem;
+            margin-bottom: 0.7rem;
+            transition: border-color 0.2s;
+        }
+
+        .ai-advice-card:hover {
+            border-color: var(--accent-blue);
+        }
+
+        .ai-advice-card .card-head {
+            display: flex;
+            align-items: center;
+            gap: 0.55rem;
+            margin-bottom: 0.45rem;
+        }
+
+        .ai-advice-card .card-icon {
+            font-size: 1.15rem;
+            flex-shrink: 0;
+        }
+
+        .ai-advice-card .card-label {
+            font-size: 0.88rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .ai-advice-card .card-label.positive { color: var(--accent-green); }
+        .ai-advice-card .card-label.warning  { color: var(--accent-orange); }
+        .ai-advice-card .card-label.negative { color: var(--accent-red); }
+
+        .ai-advice-card .card-body {
+            font-size: 0.87rem;
+            color: var(--text-secondary);
+            line-height: 1.55;
+            padding-left: 1.7rem;
+        }
+
+        /* Hata state */
+        .ai-error {
+            background: rgba(255, 71, 87, 0.08);
+            border: 1px solid rgba(255, 71, 87, 0.25);
+            border-radius: 14px;
+            padding: 1.2rem 1.1rem;
+            display: flex;
+            gap: 0.7rem;
+            align-items: flex-start;
+        }
+
+        .ai-error .err-icon { font-size: 1.3rem; flex-shrink: 0; }
+        .ai-error .err-text { font-size: 0.88rem; color: var(--accent-red); line-height: 1.5; }
+        .ai-error .err-text strong { display: block; margin-bottom: 0.2rem; }
+
+    </style>
+</head>
+<body>
+
+    <!-- Tema Toggle -->
+    <div class="theme-toggle" onclick="toggleTheme()" title="Tema Değiştir">
+        <span class="toggle-icon" id="themeIcon">🌙</span>
+        <div class="toggle-track">
+            <div class="toggle-thumb"></div>
+        </div>
+    </div>
+
+    <!-- Firebase Loading Overlay -->
+    <div id="fbLoading" style="
+        display:flex; align-items:center; justify-content:center;
+        position:fixed; inset:0; z-index:10000;
+        background:rgba(10,14,39,0.85); backdrop-filter:blur(4px);
+    ">
+        <div style="text-align:center;">
+            <div style="
+                width:48px; height:48px; margin:0 auto 1rem;
+                border:3px solid rgba(77,124,254,0.2);
+                border-top-color:#4d7cfe; border-right-color:#a55eea;
+                border-radius:50%; animation:spin 0.7s linear infinite;
+            "></div>
+            <div style="color:#8b9dc3; font-size:1rem; font-family:-apple-system,'Helvetica Neue',Helvetica,Arial,sans-serif;">
+                Veriler yükleniyor…
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <header>
+            <h1>📊 Kâr-Zarar Yönetim Sistemi</h1>
+        </header>
+
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('products')">🏷️ Ürün Tanımlama</button>
+            <button class="tab-btn" onclick="switchTab('daily')">📅 Günlük Hesaplama</button>
+            <button class="tab-btn" onclick="switchTab('report')">📈 Genel Rapor</button>
+            <button class="btn-reset" onclick="resetAllData()">🗑️ Tüm Verileri Temizle</button>
+        </div>
+
+        <!-- ÜRÜN TANIMLAMA SEKMESİ -->
+        <div id="products" class="tab-content active">
+            <div class="card">
+                <h2 class="card-title">➕ Yeni Ürün Tanımla</h2>
+                <form id="productDefinitionForm">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="newProductName">Ürün Adı</label>
+                            <input type="text" id="newProductName" placeholder="Örn: iPhone 15 Pro" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="newDeliveryPerformance">Teslimat Performansı (%)</label>
+                            <input type="number" id="newDeliveryPerformance" placeholder="80" min="0" max="100" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="newShippingCost">Kargo Ücreti (adet başı ₺)</label>
+                            <input type="number" id="newShippingCost" placeholder="140" step="0.01" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="width: 100%;">Ürün Kaydet</button>
+                </form>
+            </div>
+
+            <div class="card">
+                <h2 class="card-title">📦 Tanımlı Ürünler</h2>
+                <div style="overflow-x: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Ürün Adı</th>
+                                <th>Teslimat Performansı</th>
+                                <th>Kargo Ücreti</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="definedProductsTable">
+                            <tr>
+                                <td colspan="4" class="empty-state">
+                                    <div class="empty-state-icon">📦</div>
+                                    <div>Henüz ürün tanımlanmadı</div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- GÜNLÜK HESAPLAMA SEKMESİ -->
+        <div id="daily" class="tab-content">
+            <div class="stats-grid">
+                <div class="stat-card revenue">
+                    <div class="stat-icon">💰</div>
+                    <div class="stat-label">Seçili Gün Toplam Ciro</div>
+                    <div class="stat-value" id="todayRevenue">₺0</div>
+                </div>
+                <div class="stat-card count">
+                    <div class="stat-icon">📦</div>
+                    <div class="stat-label">Seçili Gün Sipariş</div>
+                    <div class="stat-value" id="todayOrders">0</div>
+                </div>
+                <div class="stat-card profit">
+                    <div class="stat-icon">📈</div>
+                    <div class="stat-label">Seçili Gün Net Kâr</div>
+                    <div class="stat-value" id="todayProfit">₺0</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2 class="card-title">💼 Günlük Hesaplama Ekle</h2>
+                <form id="dailyCalculationForm">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="calculationDate">Tarih</label>
+                            <input type="date" id="calculationDate" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="selectProduct">Ürün Seç</label>
+                            <select id="selectProduct" required>
+                                <option value="">-- Ürün Seçin --</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="dailyOrders">Sipariş Sayısı</label>
+                            <input type="number" id="dailyOrders" placeholder="10" min="1" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="dailyAdSpend">Reklam Harcaması (₺)</label>
+                            <input type="number" id="dailyAdSpend" placeholder="2000" step="0.01" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="dailyRevenue">Ciro (₺)</label>
+                            <input type="number" id="dailyRevenue" placeholder="15000" step="0.01" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="dailyProductCost">Ürün Maliyeti (₺)</label>
+                            <input type="number" id="dailyProductCost" placeholder="5000" step="0.01" required>
+                        </div>
+                    </div>
+
+                    <div id="selectedProductInfo" style="display: none; margin-bottom: 1rem; padding: 1rem; background: var(--bg-secondary); border-radius: 12px; border: 1px solid var(--border-color);">
+                        <div style="display: flex; gap: 2rem; flex-wrap: wrap;">
+                            <div>
+                                <span style="color: var(--text-secondary); font-size: 0.85rem;">Teslimat Performansı:</span>
+                                <strong id="infoDelivery" style="color: var(--accent-cyan); margin-left: 0.5rem;">-</strong>
+                            </div>
+                            <div>
+                                <span style="color: var(--text-secondary); font-size: 0.85rem;">Kargo Ücreti:</span>
+                                <strong id="infoShipping" style="color: var(--accent-cyan); margin-left: 0.5rem;">-</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary" style="width: 100%;">Hesaplama Ekle</button>
+                </form>
+            </div>
+
+            <div class="card">
+                <h2 class="card-title" style="justify-content: space-between;">
+                    <span>📋 Seçili Tarihin Hesaplamaları</span>
+                    <div style="display:flex; gap:0.6rem;">
+                        <button class="btn btn-ai" onclick="openAIModal()">🤖 AI Analiz</button>
+                        <button class="btn btn-export" onclick="exportDailyPNG()">📸 PNG Çıkar</button>
+                    </div>
+                </h2>
+                <div style="margin-bottom: 1rem; display: flex; align-items: flex-end; gap: 1rem; flex-wrap: wrap;">
+                    <div>
+                        <label for="viewDate" style="margin-bottom: 0.5rem;">Görüntülenecek Tarih:</label>
+                        <input type="date" id="viewDate" style="max-width: 200px;">
+                    </div>
+                </div>
+                <!-- PNG çıkacak alan -->
+                <div id="exportArea">
+                    <div class="mobile-cards" id="todayMobileCards" style="display:none;"></div>
+                    <div class="drag-scroll desktop-table" id="todayDesktopTable">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th class="sortable" data-field="productName" onclick="sortTable('daily', 'productName')">  Ürün<span class="sort-arrow"><span class="arrow-up"></span><span class="arrow-down"></span></span></th>
+                                <th class="sortable" data-field="orders" onclick="sortTable('daily', 'orders')">  Sipariş<span class="sort-arrow"><span class="arrow-up"></span><span class="arrow-down"></span></span></th>
+                                <th class="sortable" data-field="revenue" onclick="sortTable('daily', 'revenue')">  Ciro<span class="sort-arrow"><span class="arrow-up"></span><span class="arrow-down"></span></span></th>
+                                <th class="sortable" data-field="adSpend" onclick="sortTable('daily', 'adSpend')">  Reklam<span class="sort-arrow"><span class="arrow-up"></span><span class="arrow-down"></span></span></th>
+                                <th class="sortable" data-field="adCostPerOrder" onclick="sortTable('daily', 'adCostPerOrder')">  Adet Reklam<span class="sort-arrow"><span class="arrow-up"></span><span class="arrow-down"></span></span></th>
+                                <th class="sortable" data-field="productCost" onclick="sortTable('daily', 'productCost')">  Maliyet<span class="sort-arrow"><span class="arrow-up"></span><span class="arrow-down"></span></span></th>
+                                <th class="sortable" data-field="beforeAdsPerOrder" onclick="sortTable('daily', 'beforeAdsPerOrder')">  Eksi Rek./Sip.<span class="sort-arrow"><span class="arrow-up"></span><span class="arrow-down"></span></span></th>
+                                <th class="sortable" data-field="netProfit" onclick="sortTable('daily', 'netProfit')">  Net Kâr/Zarar<span class="sort-arrow"><span class="arrow-up"></span><span class="arrow-down"></span></span></th>
+                                <th class="sortable" data-field="profitPerOrder" onclick="sortTable('daily', 'profitPerOrder')">  Adet Kâr<span class="sort-arrow"><span class="arrow-up"></span><span class="arrow-down"></span></span></th>
+                                <th class="sortable" data-field="profitability" onclick="sortTable('daily', 'profitability')">  Kârlılık<span class="sort-arrow"><span class="arrow-up"></span><span class="arrow-down"></span></span></th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="todayCalculationsTable">
+                            <tr>
+                                <td colspan="11" class="empty-state">
+                                    <div class="empty-state-icon">📊</div>
+                                    <div>Bugün henüz hesaplama eklenmedi</div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                </div><!-- exportArea kapama -->
+            </div>
+        </div>
+        <div id="report" class="tab-content">
+            <div class="stats-grid">
+                <div class="stat-card revenue">
+                    <div class="stat-icon">💰</div>
+                    <div class="stat-label" id="reportRevenueLabel">Tüm Zamanlar Ciro</div>
+                    <div class="stat-value" id="allTimeRevenue">₺0</div>
+                </div>
+                <div class="stat-card count">
+                    <div class="stat-icon">📦</div>
+                    <div class="stat-label" id="reportOrdersLabel">Toplam Sipariş</div>
+                    <div class="stat-value" id="allTimeRecords">0</div>
+                </div>
+                <div class="stat-card profit">
+                    <div class="stat-icon">📈</div>
+                    <div class="stat-label" id="reportProfitLabel">Toplam Net Kâr</div>
+                    <div class="stat-value" id="allTimeProfit">₺0</div>
+                </div>
+            </div>
+
+            <!-- Kâr / Zarar özet kartları -->
+            <div class="stats-grid" id="reportSummaryGrid" style="margin-top: -0.8rem;">
+                <div class="stat-card" style="--accent-color: var(--accent-cyan);">
+                    <div class="stat-icon">🏷️</div>
+                    <div class="stat-label" id="reportProductCountLabel">Toplam Ürün</div>
+                    <div class="stat-value" id="reportProductCount" style="font-size:1.6rem;">0</div>
+                </div>
+                <div class="stat-card profit">
+                    <div class="stat-icon">✅</div>
+                    <div class="stat-label" id="reportProfitCountLabel">Kârlı Ürün</div>
+                    <div class="stat-value" id="reportProfitCount" style="font-size:1.6rem;">0</div>
+                    <div class="stat-sub" id="reportProfitSum">₺0,00</div>
+                </div>
+                <div class="stat-card loss">
+                    <div class="stat-icon">⚠️</div>
+                    <div class="stat-label" id="reportLossCountLabel">Zararlı Ürün</div>
+                    <div class="stat-value" id="reportLossCount" style="font-size:1.6rem;">0</div>
+                    <div class="stat-sub" id="reportLossSum">₺0,00</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2 class="card-title">🔍 Filtreler ve Sıralama</h2>
+                <div class="filter-bar">
+                    <div class="filter-group">
+                        <label for="filterProduct">Ürüne Göre Filtrele</label>
+                        <select id="filterProduct">
+                            <option value="">Tüm Ürünler</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="filterDate">Tarihe Göre Filtrele</label>
+                        <input type="date" id="filterDate">
+                    </div>
+                    <div class="filter-group">
+                        <label for="filterStatus">Duruma Göre Filtrele</label>
+                        <select id="filterStatus">
+                            <option value="">Tümü</option>
+                            <option value="profit">Sadece Kâr</option>
+                            <option value="loss">Sadece Zarar</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="sortBy">Sırala</label>
+                        <select id="sortBy">
+                            <option value="date-desc">Tarih (Yeni → Eski)</option>
+                            <option value="date-asc">Tarih (Eski → Yeni)</option>
+                            <option value="profit-desc">Kâr (Yüksek → Düşük)</option>
+                            <option value="profit-asc">Kâr (Düşük → Yüksek)</option>
+                            <option value="profitability-desc">Kârlılık (Yüksek → Düşük)</option>
+                            <option value="profitability-asc">Kârlılık (Düşük → Yüksek)</option>
+                            <option value="revenue-desc">Ciro (Yüksek → Düşük)</option>
+                            <option value="revenue-asc">Ciro (Düşük → Yüksek)</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <button class="btn btn-primary" onclick="applyFilters()" style="width: 100%;">Uygula</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2 class="card-title">📊 Tüm Hesaplamalar</h2>
+                <div class="mobile-cards" id="reportMobileCards" style="display:none;"></div>
+                <div class="drag-scroll desktop-table" id="reportDesktopTable">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th class="sortable" data-field="date" onclick="sortTable('report', 'date')">  Tarih<span class="sort-arrow"><span class="arrow-up"></span><span class="arrow-down"></span></span></th>
+                                <th class="sortable" data-field="productName" onclick="sortTable('report', 'productName')">  Ürün<span class="sort-arrow"><span class="arrow-up"></span><span class="arrow-down"></span></span></th>
+                                <th class="sortable" data-field="orders" onclick="sortTable('report', 'orders')">  Sipariş<span class="sort-arrow"><span class="arrow-up"></span><span class="arrow-down"></span></span></th>
+                                <th class="sortable" data-field="revenue" onclick="sortTable('report', 'revenue')">  Ciro<span class="sort-arrow"><span class="arrow-up"></span><span class="arrow-down"></span></span></th>
+                                <th class="sortable" data-field="adSpend" onclick="sortTable('report', 'adSpend')">  Reklam<span class="sort-arrow"><span class="arrow-up"></span><span class="arrow-down"></span></span></th>
+                                <th class="sortable" data-field="adCostPerOrder" onclick="sortTable('report', 'adCostPerOrder')">  Adet Reklam<span class="sort-arrow"><span class="arrow-up"></span><span class="arrow-down"></span></span></th>
+                                <th class="sortable" data-field="productCost" onclick="sortTable('report', 'productCost')">  Maliyet<span class="sort-arrow"><span class="arrow-up"></span><span class="arrow-down"></span></span></th>
+                                <th class="sortable" data-field="beforeAdsPerOrder" onclick="sortTable('report', 'beforeAdsPerOrder')">  Eksi Rek./Sip.<span class="sort-arrow"><span class="arrow-up"></span><span class="arrow-down"></span></span></th>
+                                <th class="sortable" data-field="netProfit" onclick="sortTable('report', 'netProfit')">  Net Kâr/Zarar<span class="sort-arrow"><span class="arrow-up"></span><span class="arrow-down"></span></span></th>
+                                <th class="sortable" data-field="profitPerOrder" onclick="sortTable('report', 'profitPerOrder')">  Adet Kâr<span class="sort-arrow"><span class="arrow-up"></span><span class="arrow-down"></span></span></th>
+                                <th class="sortable" data-field="profitability" onclick="sortTable('report', 'profitability')">  Kârlılık<span class="sort-arrow"><span class="arrow-up"></span><span class="arrow-down"></span></span></th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="allCalculationsTable">
+                            <tr>
+                                <td colspan="12" class="empty-state">
+                                    <div class="empty-state-icon">📈</div>
+                                    <div>Henüz kayıt yok</div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="charts-grid">
+                <div class="chart-card">
+                    <h3 class="chart-title">📊 Ürün Bazlı Toplam Kâr</h3>
+                    <canvas id="productProfitChart"></canvas>
+                </div>
+                <div class="chart-card">
+                    <h3 class="chart-title">📈 Günlük Kâr Trendi</h3>
+                    <canvas id="dailyTrendChart"></canvas>
+                </div>
+                <div class="chart-card">
+                    <h3 class="chart-title">🎯 Ürün Bazlı Kârlılık %</h3>
+                    <canvas id="productProfitabilityChart"></canvas>
+                </div>
+                <div class="chart-card">
+                    <h3 class="chart-title">💰 Ciro / Reklam / Maliyet</h3>
+                    <canvas id="costComparisonChart"></canvas>
+                </div>
+                <div class="chart-card">
+                    <h3 class="chart-title">📢 Reklam ROI (₺1 başına Kâr)</h3>
+                    <canvas id="roiChart"></canvas>
+                </div>
+                <div class="chart-card">
+                    <h3 class="chart-title">💸 Günlük Ciro Trendi</h3>
+                    <canvas id="dailyRevenueTrendChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+    <!-- AI Analiz Modali -->
+    <div class="ai-modal-overlay" id="aiModalOverlay">
+        <div class="ai-modal">
+            <div class="ai-modal-header">
+                <h3>🤖 <span class="title-text">Yapay Zeka Analizı</span></h3>
+                <button class="ai-modal-close" onclick="closeAIModal()">✕</button>
+            </div>
+            <div class="ai-date-badge" id="aiDateBadge">
+                📅 <span class="badge-date">-</span>
+            </div>
+            <div class="ai-modal-body" id="aiModalBody">
+                <!-- Loading / Content / Error burada render edilir -->
+            </div>
+        </div>
+    </div>
+
+    </div>
+
+    <script>
+
+
+        // ── Sıralama state ──
+        let dailySort   = { field: null, dir: 'asc' };
+        let reportSort  = { field: null, dir: 'asc' };
+
+        // ── Tıkla sıralama ──
+        function sortTable(table, field) {
+            const state = table === 'daily' ? dailySort : reportSort;
+
+            if (state.field === field) {
+                state.dir = state.dir === 'asc' ? 'desc' : 'asc';
+            } else {
+                state.field = field;
+                state.dir   = 'desc';   // ilk tık → yüksek-düşük
+            }
+
+            updateArrows(table);
+
+            if (table === 'daily') {
+                updateTodayTable();
+            } else {
+                // Genel rapor sortBy dropdown'u sıfırla (header sort devralıyor)
+                document.getElementById('sortBy').value = '';
+                updateReportTable();
+            }
+        }
+
+        // ── Okları güncelle ──
+        function updateArrows(table) {
+            const state = table === 'daily' ? dailySort : reportSort;
+            const tbody = table === 'daily' ? 'todayCalculationsTable' : 'allCalculationsTable';
+            const thead = document.getElementById(tbody).closest('table').querySelector('thead');
+            thead.querySelectorAll('th.sortable').forEach(th => {
+                th.classList.remove('active', 'asc', 'desc');
+                if (th.dataset.field === state.field) {
+                    th.classList.add('active', state.dir);
+                }
+            });
+        }
+
+        // ── Drag-scroll init ──
+        function initDragScroll(el) {
+            let startX, scrollLeft, isDown = false;
+            el.addEventListener('mousedown', e => {
+                isDown = true;
+                el.classList.add('dragging');
+                startX = e.pageX - el.offsetLeft;
+                scrollLeft = el.scrollLeft;
+            });
+            el.addEventListener('mouseleave', () => { isDown = false; el.classList.remove('dragging'); });
+            el.addEventListener('mouseup',    () => { isDown = false; el.classList.remove('dragging'); });
+            el.addEventListener('mousemove', e => {
+                if (!isDown) return;
+                e.preventDefault();
+                const x = e.pageX - el.offsetLeft;
+                const walk = (x - startX) * 1.5;
+                el.scrollLeft = scrollLeft - walk;
+            });
+            // Touch
+            el.addEventListener('touchstart', e => {
+                startX = e.touches[0].pageX - el.offsetLeft;
+                scrollLeft = el.scrollLeft;
+            }, { passive: true });
+            el.addEventListener('touchmove', e => {
+                const x = e.touches[0].pageX - el.offsetLeft;
+                const walk = (x - startX) * 1.5;
+                el.scrollLeft = scrollLeft - walk;
+            }, { passive: true });
+        }
+
+
+        // ── Firebase: kaydet ──
+        async function saveProducts() {
+            try {
+                await window._fbSetDoc(window._fbDoc(window._db, 'data', 'products'), { items: definedProducts });
+            } catch(e) { console.error('Firebase kaydet hata (ürünler):', e); }
+        }
+
+        async function saveCalculations() {
+            try {
+                await window._fbSetDoc(window._fbDoc(window._db, 'data', 'calculations'), { items: calculations });
+            } catch(e) { console.error('Firebase kaydet hata (hesaplamalar):', e); }
+        }
+
+        // ── Firebase: yükle ──
+        async function loadData() {
+            // Loading overlay göster
+            document.getElementById('fbLoading').style.display = 'flex';
+            try {
+                const prodSnap = await window._fbGetDoc(window._fbDoc(window._db, 'data', 'products'));
+                const calcSnap = await window._fbGetDoc(window._fbDoc(window._db, 'data', 'calculations'));
+
+                if (prodSnap.exists()) {
+                    definedProducts = prodSnap.data().items || [];
+                } else {
+                    // Firestore boş → localStorage'dan migration yap
+                    const localProds = JSON.parse(localStorage.getItem('definedProducts')) || [];
+                    if (localProds.length > 0) {
+                        definedProducts = localProds;
+                        await saveProducts();
+                    }
+                }
+
+                if (calcSnap.exists()) {
+                    calculations = calcSnap.data().items || [];
+                } else {
+                    const localCalcs = JSON.parse(localStorage.getItem('calculations')) || [];
+                    if (localCalcs.length > 0) {
+                        calculations = localCalcs;
+                        await saveCalculations();
+                    }
+                }
+            } catch(e) {
+                console.error('Firebase yükleme hata:', e);
+                // Fallback: localStorage'dan yükle
+                definedProducts = JSON.parse(localStorage.getItem('definedProducts')) || [];
+                calculations    = JSON.parse(localStorage.getItem('calculations'))    || [];
+            }
+            // UI güncelle
+            updateAllTables();
+            updateProductSelects();
+            // Loading overlay gizle
+            document.getElementById('fbLoading').style.display = 'none';
+        }
+
+
+        // ── Mobil kart render ──
+        function isMobile() {
+            return window.innerWidth <= 640;
+        }
+
+        function renderMobileCard(c, showDate) {
+            const profitClass = c.netProfit >= 0 ? 'profit-cell' : 'loss-cell';
+            const profitSign  = c.netProfit >= 0 ? '+' : '';
+            const pctClass    = c.profitability >= 0 ? 'profit-cell' : 'loss-cell';
+            const pctSign     = c.profitability >= 0 ? '+' : '';
+            const dateHtml    = showDate
+                ? `<span class="mobile-card-date">${new Date(c.date).toLocaleDateString('tr-TR')}</span>`
+                : '';
+
+            return `
+                <div class="mobile-card">
+                    <div class="mobile-card-header">
+                        <div>
+                            <div class="mobile-card-title">${c.productName}</div>
+                            ${dateHtml}
+                        </div>
+                        <div class="mobile-card-profit ${profitClass}">
+                            ${profitSign}₺${formatTL(c.netProfit)}
+                        </div>
+                    </div>
+                    <div class="mobile-card-grid">
+                        <div class="mobile-card-item">
+                            <span class="mobile-card-item-label">Sipariş</span>
+                            <span class="mobile-card-item-value">${c.orders}</span>
+                        </div>
+                        <div class="mobile-card-item">
+                            <span class="mobile-card-item-label">Ciro</span>
+                            <span class="mobile-card-item-value">₺${formatTL(c.revenue)}</span>
+                        </div>
+                        <div class="mobile-card-item">
+                            <span class="mobile-card-item-label">Reklam</span>
+                            <span class="mobile-card-item-value">₺${formatTL(c.adSpend)}</span>
+                        </div>
+                        <div class="mobile-card-item">
+                            <span class="mobile-card-item-label">Maliyet</span>
+                            <span class="mobile-card-item-value">₺${formatTL(c.productCost)}</span>
+                        </div>
+                        <div class="mobile-card-item">
+                            <span class="mobile-card-item-label">Adet Kâr</span>
+                            <span class="mobile-card-item-value ${c.profitPerOrder >= 0 ? 'profit-cell' : 'loss-cell'}">
+                                ${c.profitPerOrder >= 0 ? '+' : ''}₺${formatTL(c.profitPerOrder)}
+                            </span>
+                        </div>
+                        <div class="mobile-card-item">
+                            <span class="mobile-card-item-label">Kârlılık</span>
+                            <span class="mobile-card-item-value ${pctClass}">
+                                ${pctSign}${formatPct(c.profitability)}%
+                            </span>
+                        </div>
+                    </div>
+                    <div class="mobile-card-footer">
+                        <button class="btn btn-danger" onclick="deleteCalculation(${c.id})">Sil</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // ── Noktalı virgül formatı: 1234.56 → "1.234,56" ──
+        function formatTL(num) {
+            return num.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        // ── Yüzde formatı: 12.5 → "12,50" ──
+        function formatPct(num) {
+            return num.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        // ── Tema toggle ──
+        function toggleTheme() {
+            const html = document.documentElement;
+            const icon = document.getElementById('themeIcon');
+            if (html.getAttribute('data-theme') === 'light') {
+                html.removeAttribute('data-theme');
+                icon.textContent = '🌙';
+                localStorage.setItem('theme', 'dark');
+            } else {
+                html.setAttribute('data-theme', 'light');
+                icon.textContent = '☀️';
+                localStorage.setItem('theme', 'light');
+            }
+            // Grafikler yeniden çizilsin (renklerin güncellenmesi)
+            if (calculations.length > 0) updateCharts();
+        }
+
+        // Veri depolama (Firestore'dan loadData ile dolur)
+        let definedProducts = [];
+        let calculations = [];
+        let charts = {};
+
+        // Sayfa yüklenince
+        document.addEventListener('DOMContentLoaded', () => {
+            // Bugün tarihini YYYY-MM-DD formatında oluştur (timezone-safe)
+            const now = new Date();
+            const todayStr = now.getFullYear() + '-' +
+                String(now.getMonth() + 1).padStart(2, '0') + '-' +
+                String(now.getDate()).padStart(2, '0');
+
+
+            // Kayıt olan tema restore et
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'light') {
+                document.documentElement.setAttribute('data-theme', 'light');
+                document.getElementById('themeIcon').textContent = '☀️';
+            }
+
+            document.getElementById('calculationDate').value = todayStr;
+            document.getElementById('viewDate').value = todayStr;
+            
+            // ViewDate değiştiğinde tabloyu güncelle
+            document.getElementById('viewDate').addEventListener('change', () => {
+                updateDailyStats();
+                updateTodayTable();
+            });
+
+            // Genel Rapor tarih filtresi değişince stats da güncelle
+            document.getElementById('filterDate').addEventListener('change', () => {
+                updateReportStats();
+            });
+            
+            // Drag-scroll init
+            document.querySelectorAll('.drag-scroll').forEach(initDragScroll);
+
+
+            // Ekran boyut değişince yeniden render
+            let resizeTimer;
+            window.addEventListener('resize', () => {
+                clearTimeout(resizeTimer);
+                resizeTimer = setTimeout(() => {
+                    updateTodayTable();
+                    updateReportTable();
+                }, 150);
+            });
+
+            // Firebase'den veri yükle (UI güncelleme içinde)
+            loadData();
+        });
+
+        // Sekme değiştirme
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(tabName).classList.add('active');
+
+            if (tabName === 'report') {
+                updateReportStats();
+                updateReportTable();
+                updateCharts();
+            } else if (tabName === 'daily') {
+                updateDailyStats();
+                updateTodayTable();
+            }
+        }
+
+        // ÜRÜN TANIMLAMA
+        document.getElementById('productDefinitionForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+
+            const product = {
+                id: Date.now(),
+                name: document.getElementById('newProductName').value,
+                deliveryPerformance: parseFloat(document.getElementById('newDeliveryPerformance').value),
+                shippingCost: parseFloat(document.getElementById('newShippingCost').value)
+            };
+
+            definedProducts.push(product);
+            saveProducts();
+            localStorage.setItem('definedProducts', JSON.stringify(definedProducts));
+
+            e.target.reset();
+            updateDefinedProductsTable();
+            updateProductSelects();
+        });
+
+        function updateDefinedProductsTable() {
+            const tbody = document.getElementById('definedProductsTable');
+
+            if (definedProducts.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="4" class="empty-state">
+                            <div class="empty-state-icon">📦</div>
+                            <div>Henüz ürün tanımlanmadı</div>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = definedProducts.map(p => `
+                <tr>
+                    <td><strong>${p.name}</strong></td>
+                    <td>${p.deliveryPerformance}%</td>
+                    <td>₺${formatTL(p.shippingCost)}</td>
+                    <td>
+                        <button class="btn btn-danger" onclick="deleteDefinedProduct(${p.id})">Sil</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function deleteDefinedProduct(id) {
+            if (confirm('Bu ürünü silmek istediğinizden emin misiniz?')) {
+                definedProducts = definedProducts.filter(p => p.id !== id);
+                saveProducts();
+                localStorage.setItem('definedProducts', JSON.stringify(definedProducts));
+                updateDefinedProductsTable();
+                updateProductSelects();
+            }
+        }
+
+        function updateProductSelects() {
+            const selects = [document.getElementById('selectProduct'), document.getElementById('filterProduct')];
+            
+            selects.forEach((select, index) => {
+                const currentValue = select.value;
+                const firstOption = index === 0 ? '<option value="">-- Ürün Seçin --</option>' : '<option value="">Tüm Ürünler</option>';
+                
+                select.innerHTML = firstOption + definedProducts.map(p => 
+                    `<option value="${p.id}">${p.name}</option>`
+                ).join('');
+                
+                if (currentValue) select.value = currentValue;
+            });
+        }
+
+        // Ürün seçildiğinde bilgileri göster
+        document.getElementById('selectProduct').addEventListener('change', (e) => {
+            const productId = parseInt(e.target.value);
+            const infoDiv = document.getElementById('selectedProductInfo');
+
+            if (!productId) {
+                infoDiv.style.display = 'none';
+                return;
+            }
+
+            const product = definedProducts.find(p => p.id === productId);
+            if (product) {
+                document.getElementById('infoDelivery').textContent = product.deliveryPerformance + '%';
+                document.getElementById('infoShipping').textContent = '₺' + formatTL(product.shippingCost);
+                infoDiv.style.display = 'block';
+            }
+        });
+
+        // GÜNLÜK HESAPLAMA
+        document.getElementById('dailyCalculationForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+
+            const productId = parseInt(document.getElementById('selectProduct').value);
+            const product = definedProducts.find(p => p.id === productId);
+
+            if (!product) {
+                alert('Lütfen bir ürün seçin!');
+                return;
+            }
+
+            const data = {
+                id: Date.now(),
+                date: document.getElementById('calculationDate').value,
+                productId: productId,
+                productName: product.name,
+                deliveryPerformance: product.deliveryPerformance,
+                shippingCost: product.shippingCost,
+                orders: parseInt(document.getElementById('dailyOrders').value),
+                adSpend: parseFloat(document.getElementById('dailyAdSpend').value),
+                revenue: parseFloat(document.getElementById('dailyRevenue').value),
+                productCost: parseFloat(document.getElementById('dailyProductCost').value)
+            };
+
+            // HESAPLAMALAR
+            const costPercentage = data.productCost / data.revenue;
+            const deliveryRevenue = data.revenue * (data.deliveryPerformance / 100);
+            const afterCost = deliveryRevenue - (deliveryRevenue * costPercentage);
+            const totalShipping = data.shippingCost * data.orders;
+            const beforeAds = afterCost - totalShipping;
+            const netProfit = beforeAds - data.adSpend;
+            const profitability = (netProfit / data.revenue) * 100;
+            const beforeAdsPerOrder = beforeAds / data.orders;
+            const adCostPerOrder = data.adSpend / data.orders;
+            const profitPerOrder = netProfit / data.orders;
+
+            data.netProfit = netProfit;
+            data.profitability = profitability;
+            data.beforeAdsPerOrder = beforeAdsPerOrder;
+            data.adCostPerOrder = adCostPerOrder;
+            data.profitPerOrder = profitPerOrder;
+
+            calculations.push(data);
+            saveCalculations();
+            localStorage.setItem('calculations', JSON.stringify(calculations));
+
+            // viewDate'i veri girilen tarihe eşitle → istatistikler hemen güncellenir
+            document.getElementById('viewDate').value = data.date;
+
+            e.target.reset();
+            // Tarihi bugüne ayarla (timezone-safe)
+            const now = new Date();
+            document.getElementById('calculationDate').value = now.getFullYear() + '-' +
+                String(now.getMonth() + 1).padStart(2, '0') + '-' +
+                String(now.getDate()).padStart(2, '0');
+            document.getElementById('selectedProductInfo').style.display = 'none';
+            updateDailyStats();
+            updateTodayTable();
+        });
+
+        function updateDailyStats() {
+            const selectedDate = document.getElementById('viewDate').value;
+            const dayCalcs = calculations.filter(c => c.date === selectedDate);
+
+            const totalRevenue = dayCalcs.reduce((sum, c) => sum + c.revenue, 0);
+            const totalOrders = dayCalcs.reduce((sum, c) => sum + c.orders, 0);
+            const totalProfit = dayCalcs.reduce((sum, c) => sum + c.netProfit, 0);
+
+            document.getElementById('todayRevenue').textContent = '₺' + formatTL(totalRevenue);
+            document.getElementById('todayOrders').textContent = totalOrders;
+            document.getElementById('todayProfit').textContent = (totalProfit >= 0 ? '+' : '') + '₺' + formatTL(totalProfit);
+
+            const profitCard = document.getElementById('todayProfit').closest('.stat-card');
+            if (totalProfit >= 0) {
+                profitCard.classList.remove('loss');
+                profitCard.classList.add('profit');
+            } else {
+                profitCard.classList.remove('profit');
+                profitCard.classList.add('loss');
+            }
+        }
+
+        function updateTodayTable() {
+            const selectedDate = document.getElementById('viewDate').value;
+            const todayCalcs = calculations.filter(c => c.date === selectedDate);
+            const tbody = document.getElementById('todayCalculationsTable');
+
+            if (todayCalcs.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="11" class="empty-state">
+                            <div class="empty-state-icon">📊</div>
+                            <div>Seçili tarihte hesaplama bulunamadı</div>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            // Header sort uygula
+            if (dailySort.field) {
+                todayCalcs.sort((a, b) => {
+                    const valA = a[dailySort.field], valB = b[dailySort.field];
+                    if (typeof valA === 'string') return dailySort.dir === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                    return dailySort.dir === 'asc' ? valA - valB : valB - valA;
+                });
+            }
+
+            if (isMobile()) {
+                // Mobil → kart view
+                const container = document.getElementById('todayMobileCards');
+                container.innerHTML = todayCalcs.map(c => renderMobileCard(c, false)).join('');
+                container.style.display = 'flex';
+                document.getElementById('todayDesktopTable').style.display = 'none';
+            } else {
+                // Desktop → tablo
+                document.getElementById('todayMobileCards').style.display = 'none';
+                document.getElementById('todayDesktopTable').style.display = 'block';
+                tbody.innerHTML = todayCalcs.map(c => `
+                    <tr>
+                        <td><span class="product-badge">${c.productName}</span></td>
+                        <td>${c.orders}</td>
+                        <td>₺${formatTL(c.revenue)}</td>
+                        <td>₺${formatTL(c.adSpend)}</td>
+                        <td>₺${formatTL(c.adCostPerOrder)}</td>
+                        <td>₺${formatTL(c.productCost)}</td>
+                        <td>₺${formatTL(c.beforeAdsPerOrder)}</td>
+                        <td class="${c.netProfit >= 0 ? 'profit-cell' : 'loss-cell'}">
+                            ${c.netProfit >= 0 ? '+' : ''}₺${formatTL(c.netProfit)}
+                        </td>
+                        <td class="${c.profitPerOrder >= 0 ? 'profit-cell' : 'loss-cell'}">
+                            ${c.profitPerOrder >= 0 ? '+' : ''}₺${formatTL(c.profitPerOrder)}
+                        </td>
+                        <td class="${c.profitability >= 0 ? 'profit-cell' : 'loss-cell'}">
+                            ${c.profitability >= 0 ? '+' : ''}${formatPct(c.profitability)}%
+                        </td>
+                        <td>
+                            <button class="btn btn-danger" onclick="deleteCalculation(${c.id})">Sil</button>
+                        </td>
+                    </tr>
+                `).join('');
+            }
+        }
+
+        function deleteCalculation(id) {
+            if (confirm('Bu kaydı silmek istediğinizden emin misiniz?')) {
+                calculations = calculations.filter(c => c.id !== id);
+                saveCalculations();
+                localStorage.setItem('calculations', JSON.stringify(calculations));
+                updateDailyStats();
+                updateTodayTable();
+                updateReportStats();
+                updateReportTable();
+            }
+        }
+
+        // GENEL RAPOR
+        function updateReportStats() {
+            const dateFilter = document.getElementById('filterDate').value;
+            // Tarih seçilirse o güne ait, yoksa tüm verileri kullan
+            const data = dateFilter
+                ? calculations.filter(c => c.date === dateFilter)
+                : calculations;
+
+            // Label güncelleme
+            const labelSuffix = dateFilter
+                ? new Date(dateFilter + 'T00:00:00').toLocaleDateString('tr-TR', { day:'numeric', month:'long' })
+                : 'Tüm Zamanlar';
+
+            document.getElementById('reportRevenueLabel').textContent = labelSuffix + ' Ciro';
+            document.getElementById('reportOrdersLabel').textContent  = labelSuffix + ' Sipariş';
+            document.getElementById('reportProfitLabel').textContent  = labelSuffix + ' Net Kâr';
+
+            // Ana kartlar
+            const totalRevenue = data.reduce((s, c) => s + c.revenue, 0);
+            const totalOrders  = data.reduce((s, c) => s + c.orders, 0);
+            const totalProfit  = data.reduce((s, c) => s + c.netProfit, 0);
+
+            document.getElementById('allTimeRevenue').textContent = '₺' + formatTL(totalRevenue);
+            document.getElementById('allTimeRecords').textContent = totalOrders;
+            document.getElementById('allTimeProfit').textContent  = (totalProfit >= 0 ? '+' : '') + '₺' + formatTL(totalProfit);
+
+            const profitCard = document.getElementById('allTimeProfit').closest('.stat-card');
+            profitCard.classList.toggle('loss',   totalProfit < 0);
+            profitCard.classList.toggle('profit', totalProfit >= 0);
+
+            // ── Özet: ürün sayıları, kâr/zarar ──
+            const profitItems = data.filter(c => c.netProfit >= 0);
+            const lossItems   = data.filter(c => c.netProfit < 0);
+
+            const profitSum = profitItems.reduce((s, c) => s + c.netProfit, 0);
+            const lossSum   = lossItems.reduce((s, c) => s + c.netProfit, 0);   // negatif zaten
+
+            document.getElementById('reportProductCountLabel').textContent = labelSuffix + ' Ürün';
+            document.getElementById('reportProductCount').textContent       = data.length;
+
+            document.getElementById('reportProfitCountLabel').textContent  = 'Kârlı Kayıt';
+            document.getElementById('reportProfitCount').textContent       = profitItems.length;
+            document.getElementById('reportProfitSum').textContent         = '+₺' + formatTL(profitSum);
+
+            document.getElementById('reportLossCountLabel').textContent   = 'Zararlı Kayıt';
+            document.getElementById('reportLossCount').textContent        = lossItems.length;
+            document.getElementById('reportLossSum').textContent          = '−₺' + formatTL(Math.abs(lossSum));
+        }
+
+        function applyFilters() {
+            // Dropdown kullansa da header sort sıfırla
+            reportSort = { field: null, dir: 'asc' };
+            document.querySelectorAll('#allCalculationsTable').forEach(el => {
+                el.closest('table').querySelectorAll('th.sortable').forEach(th => th.classList.remove('active','asc','desc'));
+            });
+            updateReportTable();
+        }
+
+        function updateReportTable() {
+            let filtered = [...calculations];
+
+            // Filtreler
+            const productFilter = document.getElementById('filterProduct').value;
+            const dateFilter = document.getElementById('filterDate').value;
+            const statusFilter = document.getElementById('filterStatus').value;
+
+            if (productFilter) {
+                filtered = filtered.filter(c => c.productId == productFilter);
+            }
+
+            if (dateFilter) {
+                filtered = filtered.filter(c => c.date === dateFilter);
+            }
+
+            if (statusFilter === 'profit') {
+                filtered = filtered.filter(c => c.netProfit >= 0);
+            } else if (statusFilter === 'loss') {
+                filtered = filtered.filter(c => c.netProfit < 0);
+            }
+
+            // Sıralama — header sort varsa o öncelikli, yoksa dropdown
+            const sortBy = document.getElementById('sortBy').value;
+            if (reportSort.field) {
+                // Header tıkla-sıralama aktif
+                filtered.sort((a, b) => {
+                    let valA = a[reportSort.field], valB = b[reportSort.field];
+                    if (reportSort.field === 'date') {
+                        valA = new Date(valA); valB = new Date(valB);
+                    }
+                    if (typeof valA === 'string') return reportSort.dir === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                    return reportSort.dir === 'asc' ? valA - valB : valB - valA;
+                });
+            } else {
+                // Dropdown sıralama (eski sistem)
+                switch(sortBy) {
+                    case 'date-desc':
+                        filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+                        break;
+                    case 'date-asc':
+                        filtered.sort((a, b) => new Date(a.date) - new Date(b.date));
+                        break;
+                    case 'profit-desc':
+                        filtered.sort((a, b) => b.netProfit - a.netProfit);
+                        break;
+                    case 'profit-asc':
+                        filtered.sort((a, b) => a.netProfit - b.netProfit);
+                        break;
+                    case 'profitability-desc':
+                        filtered.sort((a, b) => b.profitability - a.profitability);
+                        break;
+                    case 'profitability-asc':
+                        filtered.sort((a, b) => a.profitability - b.profitability);
+                        break;
+                    case 'revenue-desc':
+                        filtered.sort((a, b) => b.revenue - a.revenue);
+                        break;
+                    case 'revenue-asc':
+                        filtered.sort((a, b) => a.revenue - b.revenue);
+                        break;
+                }
+            }
+
+            const tbody = document.getElementById('allCalculationsTable');
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="12" class="empty-state">
+                            <div class="empty-state-icon">📈</div>
+                            <div>Filtre kriterlerine uygun kayıt bulunamadı</div>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            if (isMobile()) {
+                const container = document.getElementById('reportMobileCards');
+                container.innerHTML = filtered.map(c => renderMobileCard(c, true)).join('');
+                container.style.display = 'flex';
+                document.getElementById('reportDesktopTable').style.display = 'none';
+            } else {
+                document.getElementById('reportMobileCards').style.display = 'none';
+                document.getElementById('reportDesktopTable').style.display = 'block';
+                tbody.innerHTML = filtered.map(c => `
+                    <tr>
+                        <td>${new Date(c.date).toLocaleDateString('tr-TR')}</td>
+                        <td><span class="product-badge">${c.productName}</span></td>
+                        <td>${c.orders}</td>
+                        <td>₺${formatTL(c.revenue)}</td>
+                        <td>₺${formatTL(c.adSpend)}</td>
+                        <td>₺${formatTL(c.adCostPerOrder)}</td>
+                        <td>₺${formatTL(c.productCost)}</td>
+                        <td>₺${formatTL(c.beforeAdsPerOrder)}</td>
+                        <td class="${c.netProfit >= 0 ? 'profit-cell' : 'loss-cell'}">
+                            ${c.netProfit >= 0 ? '+' : ''}₺${formatTL(c.netProfit)}
+                        </td>
+                        <td class="${c.profitPerOrder >= 0 ? 'profit-cell' : 'loss-cell'}">
+                            ${c.profitPerOrder >= 0 ? '+' : ''}₺${formatTL(c.profitPerOrder)}
+                        </td>
+                        <td class="${c.profitability >= 0 ? 'profit-cell' : 'loss-cell'}">
+                            ${c.profitability >= 0 ? '+' : ''}${formatPct(c.profitability)}%
+                        </td>
+                        <td>
+                            <button class="btn btn-danger" onclick="deleteCalculation(${c.id})">Sil</button>
+                        </td>
+                    </tr>
+                `).join('');
+            }
+        }
+
+        function updateCharts() {
+            if (calculations.length === 0) return;
+
+            Object.values(charts).forEach(chart => chart.destroy());
+            charts = {};
+
+
+            // Tema bazlı chart renkleri
+            const isLightTheme = document.documentElement.getAttribute('data-theme') === 'light';
+            const tickColor = isLightTheme ? '#64748b' : '#8b9dc3';
+            const gridColor = isLightTheme ? 'rgba(100,116,139,0.15)' : 'rgba(139,157,195,0.1)';
+            const chartDefaults = {
+                plugins: { legend: { labels: { color: tickColor, font: { size: 12 } } } },
+                scales: {
+                    y: { ticks: { color: tickColor }, grid: { color: gridColor } },
+                    x: { ticks: { color: tickColor }, grid: { color: gridColor } }
+                }
+            };
+
+
+            // ── Ürün bazlı aggregasyon ──
+            const byProduct = {};
+            calculations.forEach(c => {
+                if (!byProduct[c.productName]) {
+                    byProduct[c.productName] = { profit: 0, revenue: 0, adSpend: 0, productCost: 0, count: 0 };
+                }
+                byProduct[c.productName].profit      += c.netProfit;
+                byProduct[c.productName].revenue     += c.revenue;
+                byProduct[c.productName].adSpend     += c.adSpend;
+                byProduct[c.productName].productCost += c.productCost;
+                byProduct[c.productName].count       += 1;
+            });
+            const productNames   = Object.keys(byProduct);
+            const productProfits = productNames.map(n => byProduct[n].profit);
+
+            // ── Günlük aggregasyon ──
+            const byDate = {};
+            calculations.forEach(c => {
+                if (!byDate[c.date]) byDate[c.date] = { profit: 0, revenue: 0 };
+                byDate[c.date].profit  += c.netProfit;
+                byDate[c.date].revenue += c.revenue;
+            });
+            const sortedDates     = Object.keys(byDate).sort();
+            const dateLabels      = sortedDates.map(d => new Date(d + 'T00:00:00').toLocaleDateString('tr-TR'));
+
+            // ─────────────────────────────────────────
+            // 1. Ürün Bazlı Toplam Kâr  (bar)
+            // ─────────────────────────────────────────
+            charts.productProfit = new Chart(document.getElementById('productProfitChart'), {
+                type: 'bar',
+                data: {
+                    labels: productNames,
+                    datasets: [{
+                        label: 'Toplam Kâr (₺)',
+                        data: productProfits,
+                        backgroundColor: productProfits.map(v => v >= 0 ? 'rgba(0,255,136,0.7)' : 'rgba(255,71,87,0.7)'),
+                        borderColor:     productProfits.map(v => v >= 0 ? '#00ff88' : '#ff4757'),
+                        borderWidth: 2,
+                        borderRadius: 6
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: true, ...chartDefaults }
+            });
+
+            // ─────────────────────────────────────────
+            // 2. Günlük Kâr Trendi  (line + fill)
+            // ─────────────────────────────────────────
+            charts.dailyTrend = new Chart(document.getElementById('dailyTrendChart'), {
+                type: 'line',
+                data: {
+                    labels: dateLabels,
+                    datasets: [{
+                        label: 'Günlük Kâr (₺)',
+                        data: sortedDates.map(d => byDate[d].profit),
+                        borderColor: '#4d7cfe',
+                        backgroundColor: 'rgba(77,124,254,0.15)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: '#4d7cfe',
+                        pointRadius: 4
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: true, ...chartDefaults }
+            });
+
+            // ─────────────────────────────────────────
+            // 3. Ürün Bazlı Kârlılık %  (horizontal bar)
+            // ─────────────────────────────────────────
+            const profitabilities = productNames.map(n => {
+                const rev = byProduct[n].revenue;
+                return rev > 0 ? (byProduct[n].profit / rev) * 100 : 0;
+            });
+
+            charts.productProfitability = new Chart(document.getElementById('productProfitabilityChart'), {
+                type: 'bar',
+                data: {
+                    labels: productNames,
+                    datasets: [{
+                        label: 'Kârlılık (%)',
+                        data: profitabilities,
+                        backgroundColor: profitabilities.map(v => v >= 0 ? 'rgba(165,94,234,0.7)' : 'rgba(255,71,87,0.7)'),
+                        borderColor:     profitabilities.map(v => v >= 0 ? '#a55eea' : '#ff4757'),
+                        borderWidth: 2,
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    ...chartDefaults
+                }
+            });
+
+            // ─────────────────────────────────────────
+            // 4. Ciro / Reklam / Maliyet  (grouped bar)
+            // ─────────────────────────────────────────
+            charts.costComparison = new Chart(document.getElementById('costComparisonChart'), {
+                type: 'bar',
+                data: {
+                    labels: productNames,
+                    datasets: [
+                        {
+                            label: 'Ciro',
+                            data: productNames.map(n => byProduct[n].revenue),
+                            backgroundColor: 'rgba(77,124,254,0.7)',
+                            borderColor: '#4d7cfe',
+                            borderWidth: 2,
+                            borderRadius: 4
+                        },
+                        {
+                            label: 'Ürün Maliyeti',
+                            data: productNames.map(n => byProduct[n].productCost),
+                            backgroundColor: 'rgba(255,165,2,0.7)',
+                            borderColor: '#ffa502',
+                            borderWidth: 2,
+                            borderRadius: 4
+                        },
+                        {
+                            label: 'Reklam',
+                            data: productNames.map(n => byProduct[n].adSpend),
+                            backgroundColor: 'rgba(255,71,87,0.7)',
+                            borderColor: '#ff4757',
+                            borderWidth: 2,
+                            borderRadius: 4
+                        }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: true, ...chartDefaults }
+            });
+
+            // ─────────────────────────────────────────
+            // 5. Reklam ROI  (doughnut)  — ₺1 reklamdan ne kadar kâr
+            // ─────────────────────────────────────────
+            const roiValues = productNames.map(n => {
+                const ad = byProduct[n].adSpend;
+                return ad > 0 ? parseFloat((byProduct[n].profit / ad).toFixed(2)) : 0; // ROI hesap - koruma
+            });
+            const roiColors = [
+                'rgba(0,255,136,0.75)',
+                'rgba(77,124,254,0.75)',
+                'rgba(165,94,234,0.75)',
+                'rgba(255,165,2,0.75)',
+                'rgba(46,213,115,0.75)',
+                'rgba(255,71,87,0.75)'
+            ];
+
+            charts.roi = new Chart(document.getElementById('roiChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: productNames.map((n, i) => `${n}  (ROI: ${roiValues[i]}₺)`),
+                    datasets: [{
+                        data: roiValues.map(v => Math.abs(v)),
+                        backgroundColor: roiColors.slice(0, productNames.length),
+                        borderColor: '#1a2347',
+                        borderWidth: 3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { color: tickColor, font: { size: 11 }, padding: 12 }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const idx = context.dataIndex;
+                                    const roi = roiValues[idx];
+                                    return ` ${productNames[idx]}: ₺1 reklamdan → ${roi >= 0 ? '+' : ''}₺${formatTL(roi)} kâr`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // ─────────────────────────────────────────
+            // 6. Günlük Ciro Trendi  (line + fill)
+            // ─────────────────────────────────────────
+            charts.dailyRevenueTrend = new Chart(document.getElementById('dailyRevenueTrendChart'), {
+                type: 'line',
+                data: {
+                    labels: dateLabels,
+                    datasets: [{
+                        label: 'Günlük Ciro (₺)',
+                        data: sortedDates.map(d => byDate[d].revenue),
+                        borderColor: '#2ed573',
+                        backgroundColor: 'rgba(46,213,115,0.15)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: '#2ed573',
+                        pointRadius: 4
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: true, ...chartDefaults }
+            });
+        }
+
+        function updateAllTables() {
+            updateDefinedProductsTable();
+            updateDailyStats();
+            updateTodayTable();
+            updateReportStats();
+            updateReportTable();
+        }
+
+        // TÜM VERİLERİ TEMİZLE
+        function resetAllData() {
+            if (!confirm('⚠️ DİKKAT!\n\nTüm ürün tanımları ve hesaplama kayıtları kalıcı olarak silinecek.\n\nEmin misiniz?')) return;
+
+            // Verileri temizle
+            definedProducts = [];
+            calculations = [];
+            saveProducts();
+            saveCalculations();
+            localStorage.removeItem('definedProducts');
+            localStorage.removeItem('calculations');
+
+            // Ürün dropdown'ları temizle
+            updateProductSelects();
+
+            // Grafikler varsa temizle
+            Object.values(charts).forEach(chart => chart.destroy());
+            charts = {};
+
+            // Tüm tabloları güncelle
+            updateAllTables();
+        }
+
+        // PNG EXPORT
+        async function exportDailyPNG() {
+            const selectedDate = document.getElementById('viewDate').value;
+            const dayCalcs = calculations.filter(c => c.date === selectedDate);
+
+            if (dayCalcs.length === 0) {
+                alert('Seçili tarihte veri yok! Lütfen veri olan bir tarih seçin.');
+                return;
+            }
+
+            const totalRevenue = dayCalcs.reduce((sum, c) => sum + c.revenue, 0);
+            const totalOrders = dayCalcs.reduce((sum, c) => sum + c.orders, 0);
+            const totalProfit = dayCalcs.reduce((sum, c) => sum + c.netProfit, 0);
+            const totalProfitability = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
+
+            const dateLabel = new Date(selectedDate + 'T00:00:00').toLocaleDateString('tr-TR', {
+                weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+            });
+
+            const isMobile = window.innerWidth < 640;
+            const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+            const pngBg = isLight ? '#ffffff' : '#1a2347';
+            const pngCard = isLight ? '#f0f2f8' : '#141b3a';
+            const pngText = isLight ? '#1e293b' : '#ffffff';
+            const pngSub = isLight ? '#64748b' : '#8b9dc3';
+            const pngBorder = isLight ? 'rgba(58,108,244,0.2)' : 'rgba(77,124,254,0.2)';
+            const pngProfitColor = isLight ? '#1db954' : '#00ff88';
+            const pngLossColor = isLight ? '#e63946' : '#ff4757';
+            const pngBlue = isLight ? '#3a6cf4' : '#4d7cfe';
+            const pngCyan = isLight ? '#059669' : '#2ed573';
+
+            // ── MOBILE: Kart bazlı layout ──
+            let mobileCards = '';
+            if (isMobile) {
+                mobileCards = dayCalcs.map(c => `
+                    <div style="background:${pngCard}; border-radius:14px; padding:1rem 1.1rem; border:1px solid ${pngBorder}; margin-bottom:0.7rem;">
+                        <div style="font-size:1rem; font-weight:700; color:${pngText}; margin-bottom:0.7rem; padding-bottom:0.5rem; border-bottom:1px solid ${pngBorder};">${c.productName}</div>
+                        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:0.5rem;">
+                            <div style="text-align:center;">
+                                <div style="color:${pngSub}; font-size:0.65rem; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:0.25rem;">Sipariş</div>
+                                <div style="color:${pngCyan}; font-weight:700; font-family:'SF Mono', 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size:1.1rem;">${c.orders}</div>
+                            </div>
+                            <div style="text-align:center;">
+                                <div style="color:${pngSub}; font-size:0.65rem; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:0.25rem;">Kâr</div>
+                                <div style="color:${c.netProfit >= 0 ? pngProfitColor : pngLossColor}; font-weight:700; font-family:'SF Mono', 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size:1.1rem;">${c.netProfit >= 0 ? '+' : ''}₺${formatTL(c.netProfit)}</div>
+                            </div>
+                            <div style="text-align:center;">
+                                <div style="color:#8b9dc3; font-size:0.65rem; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:0.25rem;">Kârlılık</div>
+                                <div style="color:${c.profitability >= 0 ? pngProfitColor : pngLossColor}; font-weight:700; font-family:'SF Mono', 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size:1.1rem;">${c.profitability >= 0 ? '+' : ''}${formatPct(c.profitability)}%</div>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            // ── DESKTOP: Tablo layout ──
+            let desktopTable = '';
+            if (!isMobile) {
+                const rows = dayCalcs.map(c => `
+                    <tr>
+                        <td style="padding:0.8rem 1rem; font-weight:600; color:${pngText};">${c.productName}</td>
+                        <td style="padding:0.8rem 1rem; color:${pngSub};">${c.orders}</td>
+                        <td style="padding:0.8rem 1rem; color:${pngSub};">₺${formatTL(c.revenue)}</td>
+                        <td style="padding:0.8rem 1rem; color:${pngSub};">₺${formatTL(c.adSpend)}</td>
+                        <td style="padding:0.8rem 1rem; color:${pngSub};">₺${formatTL(c.adCostPerOrder)}</td>
+                        <td style="padding:0.8rem 1rem; color:${pngSub};">₺${formatTL(c.productCost)}</td>
+                        <td style="padding:0.8rem 1rem; color:${pngSub};">₺${formatTL(c.beforeAdsPerOrder)}</td>
+                        <td style="padding:0.8rem 1rem; color:${c.netProfit >= 0 ? pngProfitColor : pngLossColor}; font-weight:600;">${c.netProfit >= 0 ? '+' : ''}₺${formatTL(c.netProfit)}</td>
+                        <td style="padding:0.8rem 1rem; color:${c.profitPerOrder >= 0 ? pngProfitColor : pngLossColor}; font-weight:600;">${c.profitPerOrder >= 0 ? '+' : ''}₺${formatTL(c.profitPerOrder)}</td>
+                        <td style="padding:0.8rem 1rem; color:${c.profitability >= 0 ? pngProfitColor : pngLossColor}; font-weight:600;">${c.profitability >= 0 ? '+' : ''}${formatPct(c.profitability)}%</td>
+                    </tr>
+                `).join('');
+
+                desktopTable = `
+                    <table style="width:100%; border-collapse:separate; border-spacing:0; margin-top:0.8rem;">
+                        <thead>
+                            <tr style="background:${pngCard};">
+                                <th style="padding:0.8rem 1rem; text-align:left; font-size:0.75rem; color:${pngSub}; text-transform:uppercase; letter-spacing:0.08em; font-weight:600;">Ürün</th>
+                                <th style="padding:0.8rem 1rem; text-align:left; font-size:0.75rem; color:${pngSub}; text-transform:uppercase; letter-spacing:0.08em; font-weight:600;">Sipariş</th>
+                                <th style="padding:0.8rem 1rem; text-align:left; font-size:0.75rem; color:${pngSub}; text-transform:uppercase; letter-spacing:0.08em; font-weight:600;">Ciro</th>
+                                <th style="padding:0.8rem 1rem; text-align:left; font-size:0.75rem; color:${pngSub}; text-transform:uppercase; letter-spacing:0.08em; font-weight:600;">Reklam</th>
+                                <th style="padding:0.8rem 1rem; text-align:left; font-size:0.75rem; color:${pngSub}; text-transform:uppercase; letter-spacing:0.08em; font-weight:600;">Adet Rek.</th>
+                                <th style="padding:0.8rem 1rem; text-align:left; font-size:0.75rem; color:${pngSub}; text-transform:uppercase; letter-spacing:0.08em; font-weight:600;">Maliyet</th>
+                                <th style="padding:0.8rem 1rem; text-align:left; font-size:0.75rem; color:${pngSub}; text-transform:uppercase; letter-spacing:0.08em; font-weight:600;">Eksi Rek./Sip.</th>
+                                <th style="padding:0.8rem 1rem; text-align:left; font-size:0.75rem; color:${pngSub}; text-transform:uppercase; letter-spacing:0.08em; font-weight:600;">Net Kâr</th>
+                                <th style="padding:0.8rem 1rem; text-align:left; font-size:0.75rem; color:${pngSub}; text-transform:uppercase; letter-spacing:0.08em; font-weight:600;">Adet Kâr</th>
+                                <th style="padding:0.8rem 1rem; text-align:left; font-size:0.75rem; color:${pngSub}; text-transform:uppercase; letter-spacing:0.08em; font-weight:600;">Kârlılık</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                `;
+            }
+
+            // ── ORTAK: Özet kartlar ──
+            const summaryCards = `
+                <div style="display:grid; grid-template-columns:repeat(${isMobile ? '2' : '4'}, 1fr); gap:${isMobile ? '0.6rem' : '1rem'}; margin-top:0.9rem;">
+                    <div style="background:${pngCard}; padding:${isMobile ? '0.7rem 0.5rem' : '0.7rem 1rem'}; border-radius:12px; border-left:3px solid ${pngBlue}; text-align:center;">
+                        <div style="color:${pngSub}; font-size:0.65rem; text-transform:uppercase; letter-spacing:0.05em;">Ciro</div>
+                        <div style="color:${pngBlue}; font-weight:700; font-family:'SF Mono', 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size:${isMobile ? '0.85rem' : '1rem'}; margin-top:0.2rem;">₺${formatTL(totalRevenue)}</div>
+                    </div>
+                    <div style="background:${pngCard}; padding:${isMobile ? '0.7rem 0.5rem' : '0.7rem 1rem'}; border-radius:12px; border-left:3px solid ${pngCyan}; text-align:center;">
+                        <div style="color:${pngSub}; font-size:0.65rem; text-transform:uppercase; letter-spacing:0.05em;">Sipariş</div>
+                        <div style="color:${pngCyan}; font-weight:700; font-family:'SF Mono', 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size:${isMobile ? '0.85rem' : '1rem'}; margin-top:0.2rem;">${totalOrders}</div>
+                    </div>
+                    <div style="background:${pngCard}; padding:${isMobile ? '0.7rem 0.5rem' : '0.7rem 1rem'}; border-radius:12px; border-left:3px solid ${totalProfit >= 0 ? pngProfitColor : pngLossColor}; text-align:center;">
+                        <div style="color:${pngSub}; font-size:0.65rem; text-transform:uppercase; letter-spacing:0.05em;">Net Kâr</div>
+                        <div style="color:${totalProfit >= 0 ? pngProfitColor : pngLossColor}; font-weight:700; font-family:'SF Mono', 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size:${isMobile ? '0.85rem' : '1rem'}; margin-top:0.2rem;">${totalProfit >= 0 ? '+' : ''}₺${formatTL(totalProfit)}</div>
+                    </div>
+                    <div style="background:${pngCard}; padding:${isMobile ? '0.7rem 0.5rem' : '0.7rem 1rem'}; border-radius:12px; border-left:3px solid ${totalProfitability >= 0 ? pngProfitColor : pngLossColor}; text-align:center;">
+                        <div style="color:${pngSub}; font-size:0.65rem; text-transform:uppercase; letter-spacing:0.05em;">Kârlılık</div>
+                        <div style="color:${totalProfitability >= 0 ? pngProfitColor : pngLossColor}; font-weight:700; font-family:'SF Mono', 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size:${isMobile ? '0.85rem' : '1rem'}; margin-top:0.2rem;">${totalProfitability >= 0 ? '+' : ''}${formatPct(totalProfitability)}%</div>
+                    </div>
+                </div>
+            `;
+
+            // ── Tam HTML rapor oluştur ──
+            const reportHTML = `
+                <div style="background:${pngBg}; padding:${isMobile ? '1.2rem' : '1.8rem'}; border-radius:20px; font-family:-apple-system, 'Helvetica Neue', Helvetica, Arial, sans-serif; width:${isMobile ? '100vw' : 'auto'}; max-width:${isMobile ? '100%' : '1200px'};">
+                    <div style="font-size:${isMobile ? '1.3rem' : '1.7rem'}; font-weight:700; background:linear-gradient(135deg,#4d7cfe,#a55eea); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;">📊 Günlük Kâr-Zarar Raporu</div>
+                    <div style="color:${pngSub}; font-size:${isMobile ? '0.82rem' : '0.95rem'}; margin-top:0.25rem;">${dateLabel}</div>
+                    ${summaryCards}
+                    ${isMobile ? '<div style="margin-top:1rem;">' + mobileCards + '</div>' : desktopTable}
+                </div>
+            `;
+
+            // Gizli bir container oluştur, render et, screenshot al
+            const container = document.createElement('div');
+            container.style.position = 'fixed';
+            container.style.left = '-9999px';
+            container.style.top = '0';
+            container.style.width = isMobile ? (window.innerWidth + 'px') : '1200px';
+            container.style.zIndex = '99999';
+            container.innerHTML = reportHTML;
+            document.body.appendChild(container);
+
+            await new Promise(r => setTimeout(r, 200));
+
+            try {
+                const canvas = await html2canvas(container, {
+                    backgroundColor: pngBg,
+                    scale: 2,
+                    useCORS: true,
+                    logging: false,
+                    width: isMobile ? window.innerWidth : 1200
+                });
+
+                const link = document.createElement('a');
+                link.download = `kar-zarar-raporu-${selectedDate}.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            } catch (err) {
+                console.error('Export hata:', err);
+                alert('PNG çıkarma sırasında bir hata oluştu.');
+            }
+
+            document.body.removeChild(container);
+        }
+
+        // ═══ YZ ANALİZ ═══
+        function openAIModal() {
+            const selectedDate = document.getElementById('viewDate').value;
+            const dayCalcs = calculations.filter(c => c.date === selectedDate);
+
+            if (dayCalcs.length === 0) {
+                alert('Seçili tarihte veri yok! Lütfen veri olan bir tarih seçin.');
+                return;
+            }
+
+            // Modal açık
+            document.getElementById('aiModalOverlay').classList.add('open');
+
+            // Tarih badge güncelle
+            const dateLabel = new Date(selectedDate + 'T00:00:00').toLocaleDateString('tr-TR', {
+                weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+            });
+            document.getElementById('aiDateBadge').innerHTML =
+                '📅 <span class="badge-date">' + dateLabel + '</span>';
+
+            // Loading göster
+            showAILoading();
+
+            // API çağrı
+            callClaudeAPI(dayCalcs, selectedDate);
+        }
+
+        function closeAIModal() {
+            document.getElementById('aiModalOverlay').classList.remove('open');
+        }
+
+        // Overlay'a tıklayınca kapatma
+        document.addEventListener('click', function(e) {
+            if (e.target.id === 'aiModalOverlay') closeAIModal();
+        });
+
+        // Escape ile kapatma
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') closeAIModal();
+        });
+
+        function showAILoading() {
+            document.getElementById('aiModalBody').innerHTML = `
+                <div class="ai-loading">
+                    <div class="ai-spinner"></div>
+                    <div class="ai-loading-text">Yapay zeka analiz yapıyor<span class="ai-loading-dots"></span></div>
+                </div>
+            `;
+        }
+
+        function showAIError(msg) {
+            document.getElementById('aiModalBody').innerHTML = `
+                <div class="ai-error">
+                    <span class="err-icon">⚠️</span>
+                    <div class="err-text"><strong>Bir hata oluştu</strong>${msg}</div>
+                </div>
+            `;
+        }
+
+        async function callClaudeAPI(dayCalcs, selectedDate) {
+            // Verileri prompt'a hazırla
+            const totalRevenue     = dayCalcs.reduce((s, c) => s + c.revenue, 0);
+            const totalOrders      = dayCalcs.reduce((s, c) => s + c.orders, 0);
+            const totalProfit      = dayCalcs.reduce((s, c) => s + c.netProfit, 0);
+            const totalAdSpend     = dayCalcs.reduce((s, c) => s + c.adSpend, 0);
+            const profitability    = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
+
+            let productLines = dayCalcs.map(c =>
+                '- ' + c.productName +
+                ' | Sipariş: ' + c.orders +
+                ' | Ciro: ₺' + formatTL(c.revenue) +
+                ' | Reklam: ₺' + formatTL(c.adSpend) +
+                ' | Adet Rek: ₺' + formatTL(c.adCostPerOrder) +
+                ' | Maliyet: ₺' + formatTL(c.productCost) +
+                ' | Net Kâr: ₺' + formatTL(c.netProfit) +
+                ' | Kârlılık: ' + formatPct(c.profitability) + '%'
+            ).join('\n');
+
+            const prompt = `Sen bir e-ticaret kâr-zarar analist asistansın. Aşağıdaki günlük verileri incele ve Türkçe olarak somut, actionable tavsiyelerde bulun.
+
+📅 Tarih: ${new Date(selectedDate + 'T00:00:00').toLocaleDateString('tr-TR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+
+📊 Genel Özet:
+- Toplam Ciro: ₺${formatTL(totalRevenue)}
+- Toplam Sipariş: ${totalOrders}
+- Toplam Net Kâr: ₺${formatTL(totalProfit)}
+- Toplam Reklam Harcaması: ₺${formatTL(totalAdSpend)}
+- Genel Kârlılık: ${formatPct(profitability)}%
+
+🏷️ Ürün Bazlı Detaylar:
+${productLines}
+
+Lütfen cevabını aşağıdaki JSON formatında ver, başka hiçbey şey yazma:
+{
+  "positives": [
+    { "icon": "emoji", "title": "başlık", "detail": "açıklama" }
+  ],
+  "warnings": [
+    { "icon": "emoji", "title": "başlık", "detail": "açıklama" }
+  ],
+  "recommendations": [
+    { "icon": "emoji", "title": "başlık", "detail": "açıklama" }
+  ]
+}
+
+Kurallar:
+- Her kategoride 2-4 madde olsun
+- Detaylar somut ve veriye dayalı olsun
+- Türkçe yaz
+- Sadece JSON ver, hiçbey markdown veya açıklama yazma`;
+
+            try {
+                const response = await fetch('https://api.anthropic.com/v1/messages', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        model: 'claude-sonnet-4-20250514',
+                        max_tokens: 1000,
+                        messages: [{ role: 'user', content: prompt }]
+                    })
+                });
+
+                if (!response.ok) {
+                    const errData = await response.json().catch(() => ({}));
+                    showAIError(errData.error?.message || 'API hata kodu: ' + response.status);
+                    return;
+                }
+
+                const data = await response.json();
+                const rawText = data.content
+                    .map(block => block.type === 'text' ? block.text : '')
+                    .join('')
+                    .trim();
+
+                // JSON parse — markdown fences temizle
+                const cleaned = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+                const parsed = JSON.parse(cleaned);
+
+                renderAIResult(parsed);
+
+            } catch (err) {
+                console.error('AI API hata:', err);
+                showAIError('Analiz sırasında beklenmedik bir hata oluştu. Tekrar deneyin.');
+            }
+        }
+
+        function renderAIResult(data) {
+            let html = '';
+
+            // ── Positives ──
+            if (data.positives && data.positives.length) {
+                html += '<div class="ai-section-title">✅ Olumlu Noktalar</div>';
+                data.positives.forEach(item => {
+                    html += `
+                        <div class="ai-advice-card">
+                            <div class="card-head">
+                                <span class="card-icon">${item.icon || '👍'}</span>
+                                <span class="card-label positive">${item.title}</span>
+                            </div>
+                            <div class="card-body">${item.detail}</div>
+                        </div>`;
+                });
+            }
+
+            // ── Warnings ──
+            if (data.warnings && data.warnings.length) {
+                html += '<div class="ai-section-title">⚡ Dikkat Edilenler</div>';
+                data.warnings.forEach(item => {
+                    html += `
+                        <div class="ai-advice-card">
+                            <div class="card-head">
+                                <span class="card-icon">${item.icon || '⚠️'}</span>
+                                <span class="card-label warning">${item.title}</span>
+                            </div>
+                            <div class="card-body">${item.detail}</div>
+                        </div>`;
+                });
+            }
+
+            // ── Recommendations ──
+            if (data.recommendations && data.recommendations.length) {
+                html += '<div class="ai-section-title">💡 Öneriler</div>';
+                data.recommendations.forEach(item => {
+                    html += `
+                        <div class="ai-advice-card">
+                            <div class="card-head">
+                                <span class="card-icon">${item.icon || '💡'}</span>
+                                <span class="card-label negative">${item.title}</span>
+                            </div>
+                            <div class="card-body">${item.detail}</div>
+                        </div>`;
+                });
+            }
+
+            // Eğer hiçbey şey yoksa fallback
+            if (!html) {
+                showAIError('Analiz sonucu boş geldi. Tekrar deneyin.');
+                return;
+            }
+
+            document.getElementById('aiModalBody').innerHTML = html;
+        }
+
+    </script>
+</body>
+</html>
